@@ -7,7 +7,7 @@ import os
 import pathlib
 import shutil
 import tempfile
-from typing import IO, Any, Dict, Generator, List, Optional, Type, Union
+from typing import IO, Any, Generator, List, Optional, Type, Union
 
 import filelock
 
@@ -159,10 +159,8 @@ class FilesystemStorage(StoragePlugin):
         """Yield a file context to iterate over. If text is true, open the file with
         'rb' mode specified."""
         mode = "r" if text else "rb"
-        kwargs: Dict[str, str] = {}
-        if text:
-            kwargs["encoding"] = encoding
-        with open(path, mode=mode, **kwargs) as fh:  # type: ignore
+        open_encoding = encoding if text else None
+        with open(path, mode=mode, encoding=open_encoding) as fh:
             yield fh
 
     def read_file(

@@ -41,10 +41,10 @@ class S3Path(_S3Path):
             "Prefix": self._accessor.generate_prefix(self),
             "Delimiter": "",
         }
-        continuation_token = None
+        continuation_token: str | None = None
         while True:
             if continuation_token:
-                kwargs["ContinuationToken"] = continuation_token  # type: ignore
+                kwargs["ContinuationToken"] = continuation_token
             response = bucket.meta.client.list_objects_v2(**kwargs)
             for file in response["Contents"]:
                 file_path = S3Path(f"/{bucket_name}/{file['Key']}")
@@ -191,20 +191,15 @@ class S3Storage(StoragePlugin):
         results.sort()
         return "\n".join(str(result.relative_to(root)) for result in results)
 
-    # @contextlib.contextmanager
-    # TODO: Make a Generator
-    def rewrite(  # type: ignore
-        self,
-        filepath: PATH_TYPES,
-        mode: str = "w",
-        **kw: Any
-        # ) -> Generator[IO, None, None]:
-    ) -> IO:
+    @contextlib.contextmanager
+    def rewrite(
+        self, filepath: PATH_TYPES, mode: str = "w", **kw: Any
+    ) -> Generator[IO, None, None]:
         """Rewrite an existing file atomically to avoid programs running in
         parallel to have race conditions while reading."""
         if not isinstance(filepath, self.PATH_BACKEND):
             filepath = self.PATH_BACKEND(filepath)
-        return filepath.open(mode=mode, **kw)  # type: ignore
+        yield filepath.open(mode=mode, **kw)
 
     @contextlib.contextmanager
     def update_safe(self, filename: PATH_TYPES, **kw: Any) -> Generator[IO, None, None]:
@@ -275,22 +270,17 @@ class S3Storage(StoragePlugin):
                 fp.write(contents)
         return
 
-    # @contextlib.contextmanager
-    # TODO: Make a Generator
-    def open_file(  # type: ignore
-        self,
-        path: PATH_TYPES,
-        text: bool = True,
-        encoding: str = "utf-8"
-        # ) -> Generator[IO, None, None]:
-    ) -> IO:
+    @contextlib.contextmanager
+    def open_file(
+        self, path: PATH_TYPES, text: bool = True, encoding: str = "utf-8"
+    ) -> Generator[IO, None, None]:
         if not isinstance(path, self.PATH_BACKEND):
             path = self.PATH_BACKEND(path)
         mode = "r" if text else "rb"
         kwargs: dict[str, str] = {}
         if text:
             kwargs["encoding"] = encoding
-        return path.open(mode=mode, **kwargs)  # type: ignore
+        yield path.open(mode=mode, **kwargs)
 
     def read_file(
         self,
@@ -302,8 +292,8 @@ class S3Storage(StoragePlugin):
         """Return the contents of the requested file, either a a bytestring or a unicode
         string depending on whether **text** is True"""
 
-        fh = self.open_file(path, text=text, encoding=encoding)
-        contents: str | bytes = fh.read()
+        with self.open_file(path, text=text, encoding=encoding) as fh:
+            contents: str | bytes = fh.read()
         return contents
 
     def delete_file(self, path: PATH_TYPES, dry_run: bool = False) -> int:
