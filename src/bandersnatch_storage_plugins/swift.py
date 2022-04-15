@@ -662,17 +662,19 @@ class SwiftStorage(StoragePlugin):
         # filesystems like GlusterFS that hash based on filename
         # GlusterFS ignore '.' at the start of filenames and this avoid rehashing
         with tempfile.NamedTemporaryFile(
-            mode=mode, prefix=f".{filename}.", delete=False, **kw
+            mode=mode, prefix=f".{filename}.", **kw
         ) as f:
             filepath_tmp = f.name
             yield f
+            f.flush()
 
-        if not os.path.exists(filepath_tmp):
-            # Allow our clients to remove the file in case it doesn't want it to be
-            # put in place actually but also doesn't want to error out.
-            return
-        os.chmod(filepath_tmp, 0o100644)
-        shutil.move(filepath_tmp, filepath)
+            if not os.path.exists(filepath_tmp):
+                # Allow our clients to remove the file in case it doesn't want it to be
+                # put in place actually but also doesn't want to error out.
+                return
+
+            with open(filepath_tmp, 'rb') as f:
+                self.write_file(filepath, f)
 
     @contextlib.contextmanager
     def update_safe(self, filename: PATH_TYPES, **kw: Any) -> Generator[IO, None, None]:
