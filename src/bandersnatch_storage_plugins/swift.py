@@ -340,7 +340,7 @@ class SwiftPath(pathlib.Path):
         files: List[str] = []
         with self.backend.connection() as conn:
             try:
-                files = conn.get_container(
+                _headers, files = conn.get_container(
                     self.backend.default_container, prefix=target_path
                 )
             except swiftclient.exceptions.ClientException:
@@ -876,7 +876,7 @@ class SwiftStorage(StoragePlugin):
         files: List[str] = []
         with self.connection() as conn:
             try:
-                files = conn.get_container(self.default_container, prefix=target_path)
+                _headers, files = conn.get_container(self.default_container, prefix=target_path)
             except swiftclient.exceptions.ClientException:
                 return False
             return bool(files)

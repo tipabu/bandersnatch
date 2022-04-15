@@ -159,7 +159,7 @@ class MockConnection:
         return prefix.lstrip("/")
 
     def get_account(self) -> Tuple[Dict[Any, Any], Dict[Any, Any]]:
-        return {}, {}
+        return {}, []
 
     def get_object(self, container: str, obj: str) -> Tuple[Dict[Any, Any], bytes]:
         path = self.clean_path(container, obj)
@@ -280,7 +280,7 @@ class MockConnection:
             results.extend(contents)
         if limit:
             results = results[:limit]
-        return results
+        return {}, results
 
     def copy_object(
         self,
