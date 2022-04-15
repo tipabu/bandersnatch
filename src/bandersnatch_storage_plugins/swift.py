@@ -815,12 +815,7 @@ class SwiftStorage(StoragePlugin):
 
         This operation is a no-op on swift.
         """
-        logger.warning(
-            f"Creating directory in object storage: {path} with .swiftkeep file"
-        )
-        if not isinstance(path, self.PATH_BACKEND):
-            path = self.PATH_BACKEND(path)
-        path.joinpath(".swiftkeep").touch()
+        pass
 
     def rmdir(
         self,
