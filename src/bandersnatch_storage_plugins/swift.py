@@ -29,6 +29,7 @@ import filelock
 import keystoneauth1
 import keystoneauth1.exceptions.catalog
 import keystoneauth1.identity
+import keystoneauth1.loading
 import swiftclient.client
 import swiftclient.exceptions
 
@@ -513,43 +514,38 @@ class SwiftStorage(StoragePlugin):
         """
         Code to initialize the plugin
         """
-        swift_credentials = {
-            "user_domain_name": self.get_config_value(
-                "user_domain_name", "OS_USER_DOMAIN_NAME", default="default"
-            ),
-            "project_domain_name": self.get_config_value(
-                "project_domain_name", "OS_PROJECT_DOMAIN_NAME", default="default"
-            ),
-            "password": self.get_config_value("password", "OS_PASSWORD"),
+        auth_type = self.get_config_value("auth_type", "OS_AUTH_TYPE", default="v3password")
+        auth_plugin_loader = keystoneauth1.loading.get_plugin_loader(auth_type)
+        env_map = {
+            "user-domain-name": ["OS_USER_DOMAIN_NAME"],
+            "project-domain_name": ["OS_PROJECT_DOMAIN_NAME"],
+            "password": ["OS_PASSWORD"],
+            "username": ["OS_USER_ID", "OS_USERNAME"],
+            "project-name": ["OS_PROJECT_NAME", "OS_TENANT_NAME"],
+            "auth-url": ["OS_AUTH_URL", "OS_AUTHENTICATION_URL"],
         }
-        os_options: Dict[str, Any] = {}
-        user_id = self.get_config_value("username", "OS_USER_ID", "OS_USERNAME")
-        project = self.get_config_value(
-            "project_name", "OS_PROJECT_NAME", "OS_TENANT_NAME"
-        )
-        auth_url = self.get_config_value(
-            "auth_url", "OS_AUTH_URL", "OS_AUTHENTICATION_URL"
-        )
+        plugin_args = {}
+        for opt in auth_plugin_loader.get_options():
+            plugin_args[opt.dest] = self.get_config_value(
+                opt.name, *env_map.get(opt.name, []))
+            if plugin_args[opt.dest] is None:
+                plugin_args[opt.dest] = self.get_config_value(
+                    opt.dest, *env_map.get(opt.name, []), default=opt.default)
+        self.auth = auth_plugin_loader.create_plugin(**plugin_args)
+
+        os_options: Dict[str, Optional[str]] = {}
+        if plugin_args.get('project_name'):
+            os_options['project_name'] = plugin_args['project_name']
+        region = self.get_config_value("region", "OS_REGION_NAME")
+        if region:
+            os_options["region_name"] = region
         object_storage_url = self.get_config_value(
             "object_storage_url", "OS_STORAGE_URL"
         )
-        region = self.get_config_value("region", "OS_REGION_NAME")
-        project_id = self.get_config_value("project_id", "OS_PROJECT_ID")
-        if user_id:
-            swift_credentials["username"] = user_id
-        if project:
-            swift_credentials["project_name"] = project
-            os_options["project_name"] = project
         if object_storage_url:
             os_options["object_storage_url"] = object_storage_url
-        if region:
-            os_options["region_name"] = region
-        if project_id:
-            os_options["PROJECT_ID"] = project_id
-        if auth_url:
-            swift_credentials["auth_url"] = auth_url
+
         self.os_options = os_options
-        self.auth = keystoneauth1.identity.v3.Password(**swift_credentials)
         self._test_connection()
         SwiftPath.register_backend(self)
         _SwiftAccessor.register_backend(self)
