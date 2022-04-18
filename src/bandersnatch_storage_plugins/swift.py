@@ -1,5 +1,4 @@
 import atexit
-import base64
 import configparser
 import contextlib
 import datetime
@@ -36,10 +35,6 @@ import swiftclient.exceptions
 from bandersnatch.storage import PATH_TYPES, StoragePlugin
 
 logger = logging.getLogger("bandersnatch")
-
-
-# See https://stackoverflow.com/a/8571649 for explanation
-BASE64_RE = re.compile(b"^([A-Za-z0-9+/]{4})*([A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==)?$")
 
 
 class SwiftFileLock(filelock.BaseFileLock):
@@ -596,15 +591,13 @@ class SwiftStorage(StoragePlugin):
             return conn.get_container(container)  # type: ignore
 
     def get_object(self, container_name: str, file_path: str) -> bytes:
-        """Retrieve an object from swift, base64 decoding the contents."""
+        """Retrieve an object from swift."""
         with self.connection() as conn:
             try:
                 _, file_contents = conn.get_object(container_name, file_path)
             except swiftclient.exceptions.ClientException:
                 raise FileNotFoundError(file_path)
             else:
-                if len(file_contents) % 4 == 0 and BASE64_RE.fullmatch(file_contents):
-                    return base64.b64decode(file_contents)
                 return bytes(file_contents)
 
     def walk(
