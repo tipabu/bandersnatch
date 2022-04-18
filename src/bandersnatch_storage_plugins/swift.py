@@ -141,6 +141,36 @@ class _SwiftAccessor:
         return results
 
     @staticmethod
+    def glob(target: str, pathname: str) -> List[str]:
+        results: List[str] = []
+        if pathname.startswith("/"):
+            raise ValueError("globs must be relative")
+        if not target.endswith("/"):
+            target = f"{target}/"
+        pat = re.compile(re.escape(target) + ".*".join(
+            "[^/]*".join(re.escape(y) for y in x.split("*"))
+            for x in pathname.split("**")
+        ))
+        with _SwiftAccessor.BACKEND.connection() as conn:
+            _headers, paths = conn.get_container(
+                _SwiftAccessor.BACKEND.default_container, prefix=target,
+            )
+            while paths:
+                for p in paths:
+                    if "subdir" in p:
+                        result = p["subdir"]
+                        if not str(result).endswith("/"):
+                            result = type(result)(f"{p['subdir']!s}/")
+                    else:
+                        result = p["name"]
+                    if pat.match(result):
+                        results.append(result)
+                _headers, paths = conn.get_container(
+                    _SwiftAccessor.BACKEND.default_container, prefix=target, marker=result
+                )
+        return results
+
+    @staticmethod
     def scandir(target: str) -> NoReturn:
         raise NotImplementedError("scandir() is not available on this platform")
 
@@ -442,6 +472,11 @@ class SwiftPath(pathlib.Path):
             else:
                 yield path
                 yield from path.iterdir(conn=conn, recurse=recurse)
+
+    def glob(self, pathname) -> List["SwiftPath"]:
+        return [
+            self._make_child_relpath(name)
+            for name in self._accessor.glob(str(self), pathname)]
 
 
 class SwiftStorage(StoragePlugin):
