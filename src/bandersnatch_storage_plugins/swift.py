@@ -126,14 +126,18 @@ class _SwiftAccessor:
             _headers, paths = conn.get_container(
                 _SwiftAccessor.BACKEND.default_container, prefix=target, delimiter="/"
             )
-            for p in paths:
-                if "subdir" in p:
-                    result = p["subdir"]
-                    if not str(result).endswith("/"):
-                        result = type(result)(f"{p['subdir']!s}/")
-                else:
-                    result = p["name"]
-                results.append(result)
+            while paths:
+                for p in paths:
+                    if "subdir" in p:
+                        result = p["subdir"]
+                        if not str(result).endswith("/"):
+                            result = type(result)(f"{p['subdir']!s}/")
+                    else:
+                        result = p["name"]
+                    results.append(result)
+                _headers, paths = conn.get_container(
+                    _SwiftAccessor.BACKEND.default_container, prefix=target, delimiter="/", marker=result
+                )
         return results
 
     @staticmethod
