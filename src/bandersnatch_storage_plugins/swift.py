@@ -291,10 +291,15 @@ class SwiftPath(pathlib.Path):
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.as_posix()!r})"
 
+    def __truediv__(self, other):
+        if isinstance(other, SwiftPath):
+            return other  # SwiftPaths are always absolute
+        return super().__truediv__(other)
+
     def _make_child_relpath(self, part: str) -> "SwiftPath":
         # This is an optimization used for dir walking.  `part` must be
         # a single part relative to this path.
-        parts = self._parts + [os.path.relpath(part, start=str(self))]  # type: ignore
+        parts = self._parts + os.path.relpath(part, start=str(self)).split("/")  # type: ignore
         return self._from_parsed_parts(self._drv, self._root, parts)  # type: ignore
 
     @classmethod
