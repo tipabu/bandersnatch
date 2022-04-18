@@ -128,7 +128,7 @@ class _SwiftAccessor:
         if not target.endswith("/"):
             target = f"{target}/"
         with _SwiftAccessor.BACKEND.connection() as conn:
-            paths = conn.get_container(
+            _headers, paths = conn.get_container(
                 _SwiftAccessor.BACKEND.default_container, prefix=target, delimiter="/"
             )
             for p in paths:
