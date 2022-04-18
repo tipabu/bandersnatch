@@ -492,9 +492,10 @@ class BandersnatchMirror(Mirror):
             # This will either be the simple dir, or if we are using index
             # directory hashing, a list of subdirs to process.
             for subdir in self.get_simple_dirs(simple_dir):
+                prefix = f"{subdir.relative_to(simple_dir)}/" if self.hash_index else ""
                 for pkg in self.find_package_indexes_in_dir(subdir):
                     # We're really trusty that this is all encoded in UTF-8. :/
-                    f.write(f'    <a href="{pkg}/">{pkg}</a><br/>\n')
+                    f.write(f'    <a href="{prefix}{pkg}/">{pkg}</a><br/>\n')
             f.write("  </body>\n</html>")
         self.diff_file_list.append(simple_dir / "index.html")
 
@@ -842,7 +843,7 @@ class BandersnatchMirror(Mirror):
         parsed = urlparse(url)
         if not parsed.path.startswith("/packages"):
             raise RuntimeError(f"Got invalid download URL: {url}")
-        prefix = self.root_uri if self.root_uri else "../.."
+        prefix = self.root_uri if self.root_uri else "../../.." if self.hash_index else "../.."
         return prefix + parsed.path
 
     # TODO: This can also return SwiftPath instances now...
